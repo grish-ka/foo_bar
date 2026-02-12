@@ -37,13 +37,14 @@ fn main() {
     let m = MultiProgress::new();
 
     // 1. Header Style for the [1/4] titles
-    let header_style = ProgressStyle::with_template("{prefix:.bold.dim} {msg}").unwrap();
+    let header_style = ProgressStyle::with_template("{prefix:.bold.dim} {msg}")
+        .expect("Failed to create header progress style: invalid template");
 
     // 2. The Wide Stacked Style you wanted: Message on top, 40-char bar below
     let wide_stacked_style = ProgressStyle::with_template(
         "{msg}\n    {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
     )
-    .unwrap()
+    .expect("Failed to create wide stacked progress style: invalid template")
     .progress_chars("#>-");
 
     // --- STEP 1: RESOLVING ---
@@ -78,7 +79,7 @@ fn main() {
             let mut rng = rand::thread_rng();
             // This loop ensures each bar takes roughly 10-15 seconds
             for _ in 0..100 {
-                pb.inc(size / 100);
+                pb.inc(std::cmp::max(1, size / 100));
                 let speed = rng.gen_range(100..150);
                 thread::sleep(Duration::from_millis(speed));
             }
@@ -87,7 +88,9 @@ fn main() {
         handles.push(handle);
     }
     for h in handles {
-        let _ = h.join();
+        if let Err(e) = h.join() {
+            eprintln!("Download thread panicked: {:?}", e);
+        }
     }
     h2.finish();
 
@@ -116,16 +119,20 @@ fn main() {
 
     // Final parallel "building" step
     let mut build_handles = vec![];
-    for i in 1..=3 {
+    for _i in 1..=3 {
         let pb = m.add(ProgressBar::new(50));
         pb.set_style(wide_stacked_style.clone());
         let mut rng = rand::thread_rng();
-        let pkg = PACKAGES.choose(&mut rng).unwrap();
+        let pkg = PACKAGES
+            .choose(&mut rng)
+            .expect("PACKAGES slice should not be empty");
 
         let handle = thread::spawn(move || {
             let mut rng = rand::thread_rng();
             for _ in 0..50 {
-                let cmd = COMMANDS.choose(&mut rng).unwrap();
+                let cmd = COMMANDS
+                    .choose(&mut rng)
+                    .expect("COMMANDS slice should not be empty");
                 pb.set_message(format!("  {} {}: {}", style("🔨").yellow(), pkg, cmd));
                 pb.inc(1);
                 thread::sleep(Duration::from_millis(rng.gen_range(100..250)));
@@ -135,7 +142,9 @@ fn main() {
         build_handles.push(handle);
     }
     for h in build_handles {
-        let _ = h.join();
+        if let Err(e) = h.join() {
+            eprintln!("Build thread panicked: {:?}", e);
+        }
     }
     h4.finish();
 
