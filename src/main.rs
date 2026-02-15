@@ -1,6 +1,7 @@
 use console::{Emoji, Term, style};
-use indicatif::HumanBytes;
-use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
+// Removed 'ProgressStyle' from here because it is unused
+use foo_bar::*;
+use indicatif::{HumanBytes, HumanDuration, MultiProgress, ProgressBar};
 use rand::Rng;
 use rand::seq::SliceRandom;
 use std::env;
@@ -35,7 +36,6 @@ static PAPER: Emoji<'_, '_> = Emoji("📃 ", "");
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 fn main() {
-    // Collect CLI args to check for --force or -f
     let args: Vec<String> = env::args().collect();
     let force = args.iter().any(|arg| arg == "--force" || arg == "-f");
 
@@ -50,24 +50,13 @@ fn main() {
 
     let started = Instant::now();
     let m = MultiProgress::new();
-
-    // 1. Header Style for the [1/4] titles
-    let header_style = ProgressStyle::with_template("{prefix:.bold.dim} {msg}")
-        .expect("Failed to create header progress style: invalid template");
-
-    // 2. The Wide Stacked Style: Message on top, 40-char bar below
-    let wide_stacked_style = ProgressStyle::with_template(
-        "{msg}\n    {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
-    )
-    .expect("Failed to create wide stacked progress style: invalid template")
-    .progress_chars("#>-");
-
+    let header_style = get_header_style();
+    let wide_stacked_style = get_wide_style();
     let loadsec = 3;
 
     // --- STEP 1: RESOLVING ---
     let h1 = m.add(ProgressBar::new_spinner());
-    // Initial loading animation
-    for _i in 0..(20 * loadsec) {
+    for _ in 0..(20 * loadsec) {
         h1.inc(1);
         thread::sleep(Duration::from_millis(50));
     }
@@ -78,21 +67,15 @@ fn main() {
     h1.finish();
 
     // --- STEP 2: FETCHING ---
-    // 1. Create the Header Spinner
     let h2 = m.add(ProgressBar::new_spinner());
     h2.set_style(header_style.clone());
     h2.set_prefix("[2/4]");
     h2.set_message(format!("{} Fetching packages...", TRUCK));
 
-    // 2. To use regular println! here, we need to make sure
-    // it doesn't collide with the spinner.
-    // We calculate the size first.
     let deps = vec![("core-api", 2000), ("ui-theme", 1500), ("db-driver", 3000)];
-    let total_fetch_size: u64 = deps.iter().map(|(_name, size)| *size as u64).sum();
+    let total_fetch_size: u64 = calculate_total_size(&deps);
 
-    if !force {
-        // We use regular println!
-        // This will print below the [2/4] line because that line was just added
+    if !is_force_enabled(&args) {
         println!(
             "{} {}",
             style("Fetcher:").bold().dim(),
@@ -102,9 +85,9 @@ fn main() {
         println!(
             "{} {}{}{}",
             style("Fetcher:").bold().dim(),
-            style("After this operation, ").cyan(), // Part 1: Cyan
-            style(HumanBytes(total_fetch_size)).bold().cyan(), // Number: Bold AND Cyan
-            style(" of additional disk space will be used.").cyan()  // Part 2: Cyan
+            style("After this operation, ").cyan(),
+            style(HumanBytes(total_fetch_size)).bold().cyan(),
+            style(" of additional disk space will be used.").cyan()
         );
 
         println!(
@@ -127,9 +110,12 @@ fn main() {
             }
         }
     }
-    // Parallel downloads
+
     let mut handles = vec![];
     for (name, size) in deps {
+        // FIX 1: Convert size to u64 here
+        let size = size as u64;
+
         let pb = m.add(ProgressBar::new(size));
         pb.set_style(wide_stacked_style.clone());
         pb.set_message(format!(
@@ -142,6 +128,7 @@ fn main() {
         let handle = thread::spawn(move || {
             let mut rng = rand::thread_rng();
             for _ in 0..100 {
+                // FIX 2: Now 'size' is already u64, so this math works
                 pb.inc(std::cmp::max(1, size / 100));
                 let speed = rng.gen_range(100..150);
                 thread::sleep(Duration::from_millis(speed));
@@ -187,16 +174,12 @@ fn main() {
         let pb = m.add(ProgressBar::new(50));
         pb.set_style(wide_stacked_style.clone());
         let mut rng = rand::thread_rng();
-        let pkg = PACKAGES
-            .choose(&mut rng)
-            .expect("PACKAGES slice should not be empty");
+        let pkg = PACKAGES.choose(&mut rng).expect("PACKAGES empty");
 
         let handle = thread::spawn(move || {
             let mut rng = rand::thread_rng();
             for _ in 0..50 {
-                let cmd = COMMANDS
-                    .choose(&mut rng)
-                    .expect("COMMANDS slice should not be empty");
+                let cmd = COMMANDS.choose(&mut rng).expect("COMMANDS empty");
                 pb.set_message(format!("  {} {}: {}", style("🔨").yellow(), pkg, cmd));
                 pb.inc(1);
                 thread::sleep(Duration::from_millis(rng.gen_range(100..250)));
