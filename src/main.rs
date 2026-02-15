@@ -1,7 +1,9 @@
-use console::{Emoji, style};
+use console::{Emoji, Term, style};
+use indicatif::HumanBytes;
 use indicatif::{HumanDuration, MultiProgress, ProgressBar, ProgressStyle};
 use rand::Rng;
 use rand::seq::SliceRandom;
+use std::env;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -33,6 +35,19 @@ static PAPER: Emoji<'_, '_> = Emoji("📃 ", "");
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 fn main() {
+    // Collect CLI args to check for --force or -f
+    let args: Vec<String> = env::args().collect();
+    let force = args.iter().any(|arg| arg == "--force" || arg == "-f");
+
+    if force {
+        println!(
+            "{}",
+            style("! Force mode enabled. Skipping confirmations...")
+                .yellow()
+                .bold()
+        );
+    }
+
     let started = Instant::now();
     let m = MultiProgress::new();
 
@@ -40,31 +55,80 @@ fn main() {
     let header_style = ProgressStyle::with_template("{prefix:.bold.dim} {msg}")
         .expect("Failed to create header progress style: invalid template");
 
-    // 2. The Wide Stacked Style you wanted: Message on top, 40-char bar below
+    // 2. The Wide Stacked Style: Message on top, 40-char bar below
     let wide_stacked_style = ProgressStyle::with_template(
         "{msg}\n    {spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})"
     )
     .expect("Failed to create wide stacked progress style: invalid template")
     .progress_chars("#>-");
 
+    let loadsec = 3;
+
     // --- STEP 1: RESOLVING ---
     let h1 = m.add(ProgressBar::new_spinner());
+    // Initial loading animation
+    for _i in 0..(20 * loadsec) {
+        h1.inc(1);
+        thread::sleep(Duration::from_millis(50));
+    }
     h1.set_style(header_style.clone());
     h1.set_prefix("[1/4]");
     h1.set_message(format!("{} Resolving packages...", LOOKING_GLASS));
-    thread::sleep(Duration::from_secs(2)); // Artificial pause
+    thread::sleep(Duration::from_secs(2));
     h1.finish();
 
     // --- STEP 2: FETCHING ---
+    // 1. Create the Header Spinner
     let h2 = m.add(ProgressBar::new_spinner());
     h2.set_style(header_style.clone());
     h2.set_prefix("[2/4]");
     h2.set_message(format!("{} Fetching packages...", TRUCK));
 
-    // Simulate 3 parallel downloads that take a while
-    let mut handles = vec![];
+    // 2. To use regular println! here, we need to make sure
+    // it doesn't collide with the spinner.
+    // We calculate the size first.
     let deps = vec![("core-api", 2000), ("ui-theme", 1500), ("db-driver", 3000)];
+    let total_fetch_size: u64 = deps.iter().map(|(_name, size)| *size as u64).sum();
 
+    if !force {
+        // We use regular println!
+        // This will print below the [2/4] line because that line was just added
+        println!(
+            "{} {}",
+            style("Fetcher:").bold().dim(),
+            style("Ready to fetch packages?").cyan()
+        );
+
+        println!(
+            "{} {}{}{}",
+            style("Fetcher:").bold().dim(),
+            style("After this operation, ").cyan(), // Part 1: Cyan
+            style(HumanBytes(total_fetch_size)).bold().cyan(), // Number: Bold AND Cyan
+            style(" of additional disk space will be used.").cyan()  // Part 2: Cyan
+        );
+
+        println!(
+            "{} {} [{}/{}]",
+            style("Fetcher:").bold().dim(),
+            style("Do you want to proceed?").cyan(),
+            style("Y").bold().green(),
+            style("n").bold().red()
+        );
+
+        let term = Term::stdout();
+        match term.read_char() {
+            Ok('y') | Ok('Y') | Ok('\n') => {
+                println!("{}\n", style("Proceeding...").italic().dim());
+            }
+            _ => {
+                h2.abandon();
+                println!("{}", style("Installation aborted by user.").red());
+                return;
+            }
+        }
+    }
+    // Parallel downloads
+    let mut handles = vec![];
     for (name, size) in deps {
         let pb = m.add(ProgressBar::new(size));
         pb.set_style(wide_stacked_style.clone());
@@ -77,7 +141,6 @@ fn main() {
 
         let handle = thread::spawn(move || {
             let mut rng = rand::thread_rng();
-            // This loop ensures each bar takes roughly 10-15 seconds
             for _ in 0..100 {
                 pb.inc(std::cmp::max(1, size / 100));
                 let speed = rng.gen_range(100..150);
@@ -87,6 +150,7 @@ fn main() {
         });
         handles.push(handle);
     }
+
     for h in handles {
         if let Err(e) = h.join() {
             eprintln!("Download thread panicked: {:?}", e);
@@ -106,18 +170,18 @@ fn main() {
 
     for _ in 0..100 {
         pb_link.inc(10);
-        thread::sleep(Duration::from_millis(80)); // 8 second slow crawl
+        thread::sleep(Duration::from_millis(80));
     }
     pb_link.finish_and_clear();
     h3.finish();
 
     // --- STEP 4: BUILDING ---
     let h4 = m.add(ProgressBar::new_spinner());
-    h4.set_style(header_style);
+    h4.set_style(header_style.clone());
     h4.set_prefix("[4/4]");
     h4.set_message(format!("{} Building fresh packages...", PAPER));
+    h4.enable_steady_tick(Duration::from_millis(100));
 
-    // Final parallel "building" step
     let mut build_handles = vec![];
     for _i in 1..=3 {
         let pb = m.add(ProgressBar::new(50));
@@ -141,10 +205,9 @@ fn main() {
         });
         build_handles.push(handle);
     }
+
     for h in build_handles {
-        if let Err(e) = h.join() {
-            eprintln!("Build thread panicked: {:?}", e);
-        }
+        let _ = h.join();
     }
     h4.finish();
 
