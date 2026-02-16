@@ -1,33 +1,12 @@
 use console::{Emoji, Term, style};
 // Removed 'ProgressStyle' from here because it is unused
+use clap::Parser;
 use foo_bar::*;
 use indicatif::{HumanBytes, HumanDuration, MultiProgress, ProgressBar};
 use rand::Rng;
 use rand::seq::SliceRandom;
-use std::env;
 use std::thread;
 use std::time::{Duration, Instant};
-
-static PACKAGES: &[&str] = &[
-    "fs-events",
-    "my-awesome-module",
-    "emoji-speaker",
-    "wrap-ansi",
-    "stream-browserify",
-    "acorn-dynamic-import",
-    "react-dom",
-    "lodash",
-];
-
-static COMMANDS: &[&str] = &[
-    "cmake .",
-    "make",
-    "gcc foo.c -o foo",
-    "npm install",
-    "optimizing assets",
-    "linking binary",
-    "rebuilding cache",
-];
 
 static LOOKING_GLASS: Emoji<'_, '_> = Emoji("🔍 ", "");
 static TRUCK: Emoji<'_, '_> = Emoji("🚚 ", "");
@@ -36,10 +15,9 @@ static PAPER: Emoji<'_, '_> = Emoji("📃 ", "");
 static SPARKLE: Emoji<'_, '_> = Emoji("✨ ", ":-)");
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let force = args.iter().any(|arg| arg == "--force" || arg == "-f");
+    let args = Args::parse();
 
-    if force {
+    if is_force_enabled(&args) {
         println!(
             "{}",
             style("! Force mode enabled. Skipping confirmations...")
@@ -47,6 +25,8 @@ fn main() {
                 .bold()
         );
     }
+
+    println!("Using {} parallel jobs.\n", style(args.jobs).cyan().bold());
 
     let started = Instant::now();
     let m = MultiProgress::new();

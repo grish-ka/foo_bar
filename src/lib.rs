@@ -1,4 +1,17 @@
+use clap::Parser;
 use indicatif::ProgressStyle;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct Args {
+    /// Allow force mode (skip confirmations)
+    #[arg(short, long)]
+    pub force: bool,
+
+    /// Number of parallel jobs to run
+    #[arg(short = 'j', long, default_value_t = 4)]
+    pub jobs: usize,
+}
 
 pub static PACKAGES: &[&str] = &[
     "fs-events",
@@ -37,8 +50,8 @@ pub fn get_wide_style() -> ProgressStyle {
     .expect("Failed to create wide progress style")
     .progress_chars("#>-")
 }
-pub fn is_force_enabled(args: &[String]) -> bool {
-    args.iter().any(|arg| arg == "--force" || arg == "-f")
+pub fn is_force_enabled(args: &Args) -> bool {
+    args.force
 }
 
 pub fn calculate_total_size(deps: &[(&str, u32)]) -> u64 {

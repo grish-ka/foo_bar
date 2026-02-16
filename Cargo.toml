@@ -1,9 +1,10 @@
 [package]
 name = "foo_bar"
-version = "0.1.0"
+version = "0.1.0-beta.2"
 edition = "2024"
 
 [dependencies]
 indicatif = "0.17"
 console = "0.15"
 rand = "0.8"
+clap = { version = "4.5", features = ["derive"] }
