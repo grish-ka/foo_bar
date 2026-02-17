@@ -52,7 +52,7 @@ jobs:
         run: |
           cargo install cargo-deb
           # Use raw version (Linux handles betas fine)
-          cargo deb --target ${{ matrix.target }} --output ${{ matrix.installer_name }} --deb-version ${{ env.VERSION_RAW }}
+          cargo deb --target ${{ matrix.target }} --output ${{ matrix.installer_name }}
           
           # Copy the RAW BINARY for upload
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.binary_name }}
@@ -66,7 +66,7 @@ jobs:
           
           # 2. Copy the compiled executable into 'app/' so WiX can find it
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} app/foo_bar.exe
-          
+          cp installer/app/* app/
           # 3. Copy the compiled executable to root for raw upload
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.binary_name }}
 

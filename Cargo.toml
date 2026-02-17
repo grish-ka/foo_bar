@@ -1,6 +1,6 @@
 [package]
 name = "foo_bar"
-version = "0.1.0-beta.6"
+version = "0.1.0-beta.7"
 edition = "2024"
 
 [dependencies]
@@ -15,7 +15,8 @@ maintainer = "Grishka"
 copyright = "2026, Grishka"
 license-file = ["LICENSE", "4"] # The '4' means it installs to /usr/share/doc/...
 extended-description = """\
-foo_bar is a cli rust app for simulating progress bars"""
+foo_bar is a cli rust app for simulating progress bars
+using indicatif"""
 depends = "$auto" 
 section = "utils"
 priority = "optional"
