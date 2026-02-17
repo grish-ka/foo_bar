@@ -3,7 +3,7 @@
 
     <Package Name="foo_bar"
              Manufacturer="Grishka"
-             Version="1.0.0.0"
+             Version="0.1.0.5"
              UpgradeCode="{A7831649-4322-4113-8884-635670732454}"
              Compressed="true"
              Scope="perUser">

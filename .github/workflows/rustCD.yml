@@ -21,16 +21,16 @@ jobs:
           # --- LINUX CONFIG ---
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: foo_bar          # The raw binary name
-            binary_name: foo_bar-linux-amd64  # The name of the binary inside the installer
-            installer_name: foo_bar-linux-amd64.deb
+            artifact_name: foo_bar             # Cargo output name
+            binary_name: foo_bar-linux-amd64   # Renamed for download
+            installer_name: foo_bar-linux-amd64.deb  # Final installer name
 
           # --- WINDOWS CONFIG ---
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: foo_bar.exe                  # The raw binary name
-            binary_name: foo_bar-linux-amd64.exe        # The name of the binary inside the installer
-            installer_name: foo_bar-windows-amd64.msi
+            artifact_name: foo_bar.exe           # Cargo output name
+            binary_name: foo_bar-windows-amd64.exe # Renamed for download (Fixed typo)
+            installer_name: foo_bar-windows-amd64.msi # Final installer name
 
     steps:
       - name: Checkout code
@@ -54,7 +54,7 @@ jobs:
           cargo install cargo-deb
           cargo deb --target ${{ matrix.target }} --output ${{ matrix.installer_name }}
           
-          # 2. Copy the RAW BINARY to root so we can upload it too
+          # 2. Copy the RAW BINARY to root and rename it for upload
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.binary_name }}
 
       # --- WINDOWS STEPS ---
@@ -63,26 +63,33 @@ jobs:
         run: |
           dotnet tool install --global wix
 
-          # 1. Copy RAW EXE to root (for the Release upload)
+          # 1. Copy RAW EXE to root and rename it (for the Release upload)
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.binary_name }}
           
           # 2. Prepare WiX 'app' folder
           mkdir -p app
-          # Copy the exe into app/ for WiX to use
-          cp ./foo_bar.exe app/foo_bar.exe
+          
+          # 3. Copy the exe into app/ for WiX to use
+          # FIX: We copy from the 'target' folder, not ./foo_bar.exe
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} app/foo_bar.exe
 
+          # 4. Copy _internal if it exists
+          if [ -d "app/_internal" ]; then
+            cp -r app/_internal app/_internal
+          else
+            echo "No _internal folder found, skipping."
+          fi
 
-          # 4. Build the MSI
+          # 5. Build the MSI
           dotnet build installer/foo_bar.wixproj -c Release -p:Platform=x64
 
-          # 5. Move MSI to root
+          # 6. Move MSI to root and rename it
           find installer -name "*.msi" -exec mv {} ${{ matrix.installer_name }} \;
 
       # 4. UPLOAD EVERYTHING
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          # UPLOADS BOTH THE INSTALLER AND THE RAW EXE
           files: |
             ${{ matrix.installer_name }}
             ${{ matrix.binary_name }}
