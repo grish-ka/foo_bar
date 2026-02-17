@@ -3,7 +3,7 @@
 
     <Package Name="foo_bar"
              Manufacturer="Grishka"
-             Version="0.1.0.5"
+             Version="0.1.0.6"
              UpgradeCode="{A7831649-4322-4113-8884-635670732454}"
              Compressed="true"
              Scope="perUser">
@@ -11,16 +11,12 @@
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
         <MediaTemplate EmbedCab="true" />
 
-        <WixVariable Id="WixUIBannerBmp" Value="app/banner.bmp" />
-        <WixVariable Id="WixUIDialogBmp" Value="app/dialog.bmp" />
         <WixVariable Id="WixUILicenseRtf" Value="app/License.rtf" />
 
         <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
         <StandardDirectory Id="LocalAppDataFolder">
-            <Directory Id="INSTALLFOLDER" Name="foo_bar">
-                <Directory Id="InternalFolder" Name="_internal" />
-            </Directory>
+            <Directory Id="INSTALLFOLDER" Name="foo_bar" />
         </StandardDirectory>
 
         <StandardDirectory Id="ProgramMenuFolder">
@@ -31,7 +27,6 @@
             <ComponentRef Id="MainExecutable" />
             <ComponentRef Id="ApplicationShortcut" />
             <ComponentRef Id="Cleanup_InstallFolder" />
-            <ComponentGroupRef Id="InternalFiles_ComponentGroup" />
         </Feature>
 
         <Component Id="MainExecutable" Directory="INSTALLFOLDER" Guid="{9B60152F-9311-4886-9040-527263300642}">
