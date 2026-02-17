@@ -1,4 +1,4 @@
-name: Release
+name: Release Installers
 
 permissions:
   contents: write
@@ -9,39 +9,79 @@ on:
       - "v*"
 
 jobs:
-  build-and-release:
-    name: Build & Release
+  build-installers:
+    name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
+          # --- LINUX CONFIG ---
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary_name: foo_bar
-            asset_name: foo_bar-linux-amd64
+            artifact_name: foo_bar
+            installer_name: foo_bar_amd64.deb
+
+          # --- WINDOWS CONFIG ---
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: foo_bar.exe
-            asset_name: foo_bar-windows-amd64.exe
+            artifact_name: foo_bar.exe
+            installer_name: foo_bar.msi
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build Binary
-        run: cargo build --release
+      # 1. SETUP RUST
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Rename Binary
-        shell: bash
+      # 2. BUILD BINARY
+      - name: Build Release Binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # --- LINUX SPECIFIC STEPS ---
+      - name: Build DEB Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          cp target/release/${{ matrix.binary_name }} ${{ matrix.asset_name }}
+          cargo install cargo-deb
+          # This command builds the .deb file using the config in Cargo.toml
+          cargo deb --target ${{ matrix.target }} --output ${{ matrix.installer_name }}
 
+      # --- WINDOWS SPECIFIC STEPS ---
+      - name: Build MSI Installer (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # 1. Install WiX Toolset
+          dotnet tool install --global wix
+
+          # 2. Create the 'app' folder structure that WiX expects
+          mkdir app
+          
+          # 3. Copy the compiled executable into 'app'
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} app/foo_bar.exe
+
+          # 4. Copy the _internal folder (if it exists)
+          if [ -d "app/_internal" ]; then
+            cp -r app/_internal app/_internal
+          else
+            echo "No _internal folder found in source, skipping."
+          fi
+
+          # 5. Build the MSI
+          # Note: We assume your .wixproj is in 'installer/foo_bar.wixproj'
+          dotnet build installer/foo_bar.wixproj -c Release -p:Platform=x64
+
+          # 6. Find the generated MSI and rename/move it for upload
+          # WiX puts the output in installer/bin/Release/ usually
+          find installer -name "*.msi" -exec mv {} ${{ matrix.installer_name }} \;
+
+      # 4. UPLOAD TO GITHUB RELEASE
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ matrix.asset_name }}
-          # THE MAGIC LINE:
-          # If the tag contains a '-', it marks it as a Pre-release.
+          files: ${{ matrix.installer_name }}
           prerelease: ${{ contains(github.ref, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

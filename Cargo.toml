@@ -8,3 +8,17 @@ indicatif = "0.17"
 console = "0.15"
 rand = "0.8"
 clap = { version = "4.5", features = ["derive"] }
+
+
+[package.metadata.deb]
+maintainer = "Grishka"
+copyright = "2026, Grishka"
+license-file = ["LICENSE", "4"] # The '4' means it installs to /usr/share/doc/...
+extended-description = """\
+foo_bar is a cli rust app for simulating progress bars"""
+depends = "$auto" 
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/foo_bar", "usr/bin/", "755"] # Ensure binary name matches your cargo name
+]

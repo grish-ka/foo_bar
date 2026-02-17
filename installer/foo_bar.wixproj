@@ -1,0 +1,25 @@
+<Project Sdk="WixToolset.Sdk/4.0.0">
+  <PropertyGroup>
+    <OutputName>foo_bar</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.0" />
+    <PackageReference Include="WixToolset.Heat" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <HarvestDirectory Include="../app/_internal">
+      <ComponentGroupName>InternalFiles_ComponentGroup</ComponentGroupName>
+      <DirectoryRefId>InternalFolder</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <PreprocessorVariable>var.InternalDir</PreprocessorVariable>
+    </HarvestDirectory>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <DefineConstants>InternalDir=../app/_internal</DefineConstants>
+  </PropertyGroup>
+</Project>
